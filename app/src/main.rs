@@ -1,6 +1,7 @@
-use rust_iot_project::server::{IOTApp, Variables};
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
+
+use rust_iot_project::server::{IOTApp, Variables};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
