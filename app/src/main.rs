@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
+use rust_iot_project::gui::gui_main;
 use rust_iot_project::server::{IOTApp, Variables};
 
 #[actix_web::main]
@@ -15,26 +16,12 @@ async fn main() -> std::io::Result<()> {
     let gui_counter = Arc::clone(&server_counter);
     let gui_variables = Arc::clone(&server_variables);
 
-    thread::spawn(move || loop {
-        let mut n = gui_counter.lock().unwrap();
-        *n += 1;
-        // println!("count: {}", n);
-        std::mem::drop(n);
+    thread::spawn(move || {
+        //let vars = gui_variables.lock().unwrap();
+        //let variables = (*vars).clone();
+        //std::mem::drop(vars);
 
-        let vars = gui_variables.lock().unwrap();
-        let variables = (*vars).clone();
-        std::mem::drop(vars);
-
-        for v in variables.bpm.iter() {
-            println!("BPM: {}", v);
-        }
-
-        for v in variables.temperature.iter() {
-            println!("TEMPERATURE: {}", v);
-        }
-
-        let two_sec = time::Duration::from_millis(2000);
-        thread::sleep(two_sec);
+        gui_main();
     });
 
     app.run(server_counter, server_variables).unwrap().await
