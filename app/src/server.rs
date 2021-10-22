@@ -2,6 +2,7 @@ use actix_web::dev::Server;
 use actix_web::{get, middleware, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 
 #[get("/status")]
 async fn status(state: web::Data<AppState>) -> impl Responder {
@@ -26,16 +27,31 @@ async fn post_variables(
     state: web::Data<AppState>,
 ) -> impl Responder {
     let mut vars = state.variables.lock().unwrap();
-    (*vars).bpm.push(req.bpm);
-    (*vars).temperature.push(req.temperature);
+    let now = SystemTime::now();
+    (*vars).bpm.push(Measurement::new(now, req.bpm));
+    (*vars)
+        .temperature
+        .push(Measurement::new(now, req.temperature));
 
     HttpResponse::Ok()
 }
 
 #[derive(Clone)]
+pub struct Measurement {
+    pub timestamp: SystemTime,
+    pub value: f32,
+}
+
+impl Measurement {
+    pub fn new(timestamp: SystemTime, value: f32) -> Self {
+        Measurement { timestamp, value }
+    }
+}
+
+#[derive(Clone)]
 pub struct Variables {
-    pub bpm: Vec<f32>,
-    pub temperature: Vec<f32>,
+    pub bpm: Vec<Measurement>,
+    pub temperature: Vec<Measurement>,
 }
 
 impl Variables {
