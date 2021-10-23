@@ -1,19 +1,14 @@
 use gio::prelude::*;
-use glib::{MainContext, Sender, Receiver};
+use glib::{MainContext, Receiver, Sender};
 use gtk::prelude::*;
 use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
-use rand::Rng;
 use std::sync::{Arc, Mutex};
 use std::{thread, time};
 
 use crate::server::Variables;
 
 pub fn gui_main(vars: Arc<Mutex<Variables>>) {
-    let mut vars = vars.lock().unwrap();
-    let variables = (*vars).clone();
-    std::mem::drop(vars);
-
     if gtk::init().is_err() {
         println!("Failed to initialize GTK.");
         std::process::exit(1);
@@ -21,14 +16,14 @@ pub fn gui_main(vars: Arc<Mutex<Variables>>) {
 
     let app = gtk::Application::new(None, Default::default()).expect("Initialization failed...");
 
-    app.connect_activate(|app| {
-        update_gui(app);
+    app.connect_activate(move |app| {
+        update_gui(app, vars.clone());
     });
 
     app.run(&std::env::args().collect::<Vec<_>>());
 }
 
-fn update_gui(app: &gtk::Application) {
+fn update_gui(app: &gtk::Application, vars: Arc<Mutex<Variables>>) {
     let win = gtk::ApplicationWindow::new(app);
     win.set_default_size(800, 800);
     win.set_title("Rust IOT");
@@ -39,18 +34,16 @@ fn update_gui(app: &gtk::Application) {
     frame.add(&drawing_area);
     win.add(&frame);
     win.show_all();
-    drawing_area.connect_draw(move |_, ctx| draw_plot(ctx) );
+    drawing_area.connect_draw(move |_, ctx| draw_plot(ctx, vars.clone()));
 
     let drawing_area_clone = drawing_area.clone();
     let (sx, rx): (Sender<()>, Receiver<()>) = MainContext::channel(glib::PRIORITY_DEFAULT);
 
-    thread::spawn(move || {
-        loop {
-            sx.send(()).unwrap();
+    thread::spawn(move || loop {
+        sx.send(()).unwrap();
 
-            let two_sec = time::Duration::from_millis(2000);
-            thread::sleep(two_sec);
-        }
+        let two_sec = time::Duration::from_millis(2000);
+        thread::sleep(two_sec);
     });
 
     rx.attach(None, move |val| {
@@ -59,7 +52,7 @@ fn update_gui(app: &gtk::Application) {
     });
 }
 
-fn draw_plot(ctx: &cairo::Context) -> gtk::Inhibit {
+fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit {
     ctx.rectangle(1.0, 1.0, 100.0, 200.0);
     ctx.fill();
 
@@ -90,6 +83,10 @@ fn draw_plot(ctx: &cairo::Context) -> gtk::Inhibit {
         .y_label_formatter(&|x| format!("{:.3}", x))
         .draw()
         .unwrap();
+
+    //let mut vars = vars.lock().unwrap();
+    //let variables = (*vars).clone();
+    //std::mem::drop(vars);
 
     // Similarly, we can draw point series
     chart
