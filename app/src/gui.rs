@@ -1,9 +1,19 @@
 use gio::prelude::*;
+use glib::{MainContext, Sender, Receiver};
 use gtk::prelude::*;
 use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
+use rand::Rng;
+use std::sync::{Arc, Mutex};
+use std::{thread, time};
 
-pub fn gui_main() {
+use crate::server::Variables;
+
+pub fn gui_main(vars: Arc<Mutex<Variables>>) {
+    let mut vars = vars.lock().unwrap();
+    let variables = (*vars).clone();
+    std::mem::drop(vars);
+
     if gtk::init().is_err() {
         println!("Failed to initialize GTK.");
         std::process::exit(1);
@@ -12,13 +22,13 @@ pub fn gui_main() {
     let app = gtk::Application::new(None, Default::default()).expect("Initialization failed...");
 
     app.connect_activate(|app| {
-        build_gui(app);
+        update_gui(app);
     });
 
     app.run(&std::env::args().collect::<Vec<_>>());
 }
 
-fn build_gui(app: &gtk::Application) {
+fn update_gui(app: &gtk::Application) {
     let win = gtk::ApplicationWindow::new(app);
     win.set_default_size(800, 800);
     win.set_title("Rust IOT");
@@ -27,10 +37,26 @@ fn build_gui(app: &gtk::Application) {
     let frame = gtk::Frame::new(None);
 
     frame.add(&drawing_area);
-    drawing_area.connect_draw(move |_, ctx| draw_plot(ctx));
-
     win.add(&frame);
     win.show_all();
+    drawing_area.connect_draw(move |_, ctx| draw_plot(ctx) );
+
+    let drawing_area_clone = drawing_area.clone();
+    let (sx, rx): (Sender<()>, Receiver<()>) = MainContext::channel(glib::PRIORITY_DEFAULT);
+
+    thread::spawn(move || {
+        loop {
+            sx.send(()).unwrap();
+
+            let two_sec = time::Duration::from_millis(2000);
+            thread::sleep(two_sec);
+        }
+    });
+
+    rx.attach(None, move |val| {
+        drawing_area_clone.queue_draw();
+        glib::Continue(true)
+    });
 }
 
 fn draw_plot(ctx: &cairo::Context) -> gtk::Inhibit {
@@ -63,14 +89,6 @@ fn draw_plot(ctx: &cairo::Context) -> gtk::Inhibit {
         // We can also change the format of the label text
         .y_label_formatter(&|x| format!("{:.3}", x))
         .draw()
-        .unwrap();
-
-    // And we can draw something in the drawing area
-    chart
-        .draw_series(LineSeries::new(
-            vec![(0.0, 0.0), (5.0, 5.0), (8.0, 7.0)],
-            &RED,
-        ))
         .unwrap();
 
     // Similarly, we can draw point series

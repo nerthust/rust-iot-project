@@ -17,11 +17,7 @@ async fn main() -> std::io::Result<()> {
     let gui_variables = Arc::clone(&server_variables);
 
     thread::spawn(move || {
-        //let vars = gui_variables.lock().unwrap();
-        //let variables = (*vars).clone();
-        //std::mem::drop(vars);
-
-        gui_main();
+        gui_main(gui_variables);
     });
 
     app.run(server_counter, server_variables).unwrap().await
