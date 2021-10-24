@@ -80,9 +80,9 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     // Draw a mesh
     chart
         .configure_mesh()
-        .x_labels(5)
-        .y_labels(5)
-        .y_label_formatter(&|x| format!("{:.3}", x))
+        .x_labels(10)
+        .y_labels(10)
+        .y_label_formatter(&|x| format!("{:.1}", x))
         .draw()
         .unwrap();
 
