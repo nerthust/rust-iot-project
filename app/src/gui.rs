@@ -4,9 +4,10 @@ use gtk::prelude::*;
 use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
 use std::sync::{Arc, Mutex};
+use std::time::UNIX_EPOCH;
 use std::{thread, time};
 
-use crate::server::Variables;
+use crate::server::{Measurement, Variables};
 
 pub fn gui_main(vars: Arc<Mutex<Variables>>) {
     if gtk::init().is_err() {
@@ -65,35 +66,48 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     // After this point, we should be able to draw construct a chart context
     let mut chart = ChartBuilder::on(&root)
         // Set the caption of the chart
-        .caption("This is our first plot", ("sans-serif", 40).into_font())
+        .caption(
+            "BMP(red) & Temperature(blue)",
+            ("sans-serif", 20).into_font(),
+        )
         // Set the size of the label region
         .x_label_area_size(20)
         .y_label_area_size(40)
         // Finally attach a coordinate on the drawing area and make a chart context
-        .build_cartesian_2d(0f32..10f32, 0f32..10f32)
+        .build_cartesian_2d(0f32..1200f32, 0f32..120f32)
         .unwrap();
 
-    // Then we can draw a mesh
+    // Draw a mesh
     chart
         .configure_mesh()
-        // We can customize the maximum number of labels allowed for each axis
         .x_labels(5)
         .y_labels(5)
-        // We can also change the format of the label text
         .y_label_formatter(&|x| format!("{:.3}", x))
         .draw()
         .unwrap();
 
-    //let mut vars = vars.lock().unwrap();
-    //let variables = (*vars).clone();
-    //std::mem::drop(vars);
+    let vars = vars.lock().unwrap();
+    let variables = (*vars).clone();
+    std::mem::drop(vars);
 
-    // Similarly, we can draw point series
+    let bpm_points = mk_points(&variables.bpm);
+    let temperature_points = mk_points(&variables.temperature);
+
+    // Draw BPM points
+    chart
+        .draw_series(PointSeries::of_element(bpm_points, 5, &RED, &|c, s, st| {
+            return EmptyElement::at(c)    // We want to construct a composed element on-the-fly
+            + Circle::new((0,0),s,st.filled()) // At this point, the new pixel coordinate is established
+            + Text::new(format!("{:?}", c), (10, 0), ("sans-serif", 10).into_font());
+        }))
+        .unwrap();
+
+    // Draw TEMPERATURE points
     chart
         .draw_series(PointSeries::of_element(
-            vec![(0.0, 0.0), (5.0, 5.0), (8.0, 7.0)],
+            temperature_points,
             5,
-            &RED,
+            &BLUE,
             &|c, s, st| {
                 return EmptyElement::at(c)    // We want to construct a composed element on-the-fly
             + Circle::new((0,0),s,st.filled()) // At this point, the new pixel coordinate is established
@@ -103,4 +117,20 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
         .unwrap();
 
     Inhibit(false)
+}
+
+fn mk_points<'a>(v: &'a Vec<Measurement>) -> Vec<(f32, f32)> {
+    let mut points = Vec::new();
+
+    if v.len() > 0 {
+        let t0 = v[0].timestamp.duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+        for ms in v.iter() {
+            let t1 = ms.timestamp.duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let diff = (t1 - t0) as f32;
+            points.push((diff, ms.value))
+        }
+    }
+
+    points
 }
