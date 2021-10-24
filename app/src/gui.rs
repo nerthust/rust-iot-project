@@ -47,7 +47,7 @@ fn update_gui(app: &gtk::Application, vars: Arc<Mutex<Variables>>) {
         thread::sleep(two_sec);
     });
 
-    rx.attach(None, move |val| {
+    rx.attach(None, move |_| {
         drawing_area_clone.queue_draw();
         glib::Continue(true)
     });

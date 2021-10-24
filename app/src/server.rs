@@ -2,16 +2,10 @@ use actix_web::dev::Server;
 use actix_web::{get, middleware, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 #[get("/status")]
-async fn status(state: web::Data<AppState>) -> impl Responder {
-    let mut n = state.counter.lock().unwrap();
-
-    *n += 1;
-
-    println!("count: {}", n);
-
+async fn status() -> impl Responder {
     HttpResponse::Ok()
 }
 
@@ -64,7 +58,6 @@ impl Variables {
 }
 
 pub struct AppState {
-    counter: Arc<Mutex<usize>>,
     variables: Arc<Mutex<Variables>>,
 }
 
@@ -77,16 +70,11 @@ impl IOTApp {
         IOTApp { port }
     }
 
-    pub fn run(
-        &self,
-        counter: Arc<Mutex<usize>>,
-        variables: Arc<Mutex<Variables>>,
-    ) -> std::io::Result<Server> {
+    pub fn run(&self, variables: Arc<Mutex<Variables>>) -> std::io::Result<Server> {
         println!("Server running on port: {}", self.port);
 
         let server = HttpServer::new(move || {
             let state = AppState {
-                counter: Arc::clone(&counter),
                 variables: Arc::clone(&variables),
             };
 

@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::{thread, time};
+use std::thread;
 
 use rust_iot_project::gui::gui_main;
 use rust_iot_project::server::{IOTApp, Variables};
@@ -10,15 +10,13 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let app = IOTApp::new(8080);
-    let server_counter = Arc::new(Mutex::new(0));
     let server_variables = Arc::new(Mutex::new(Variables::new()));
 
-    let gui_counter = Arc::clone(&server_counter);
     let gui_variables = Arc::clone(&server_variables);
 
     thread::spawn(move || {
         gui_main(gui_variables);
     });
 
-    app.run(server_counter, server_variables).unwrap().await
+    app.run(server_variables).unwrap().await
 }
