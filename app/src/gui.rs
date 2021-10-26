@@ -1,6 +1,7 @@
 use gio::prelude::*;
 use glib::{MainContext, Receiver, Sender};
 use gtk::prelude::*;
+use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
 use std::sync::{Arc, Mutex};
@@ -63,21 +64,16 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
 
     root.fill(&WHITE).unwrap();
     let root = root.margin(10, 10, 10, 10);
-    // After this point, we should be able to draw construct a chart context
     let mut chart = ChartBuilder::on(&root)
-        // Set the caption of the chart
         .caption(
             "BMP(red) & Temperature(blue)",
             ("sans-serif", 20).into_font(),
         )
-        // Set the size of the label region
         .x_label_area_size(20)
         .y_label_area_size(40)
-        // Finally attach a coordinate on the drawing area and make a chart context
         .build_cartesian_2d(0f32..1200f32, 0f32..120f32)
         .unwrap();
 
-    // Draw a mesh
     chart
         .configure_mesh()
         .x_labels(10)
@@ -93,30 +89,45 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     let bpm_points = mk_points(&variables.bpm);
     let temperature_points = mk_points(&variables.temperature);
 
-    // Draw BPM points
-    chart
-        .draw_series(PointSeries::of_element(bpm_points, 5, &RED, &|c, s, st| {
-            return EmptyElement::at(c)    // We want to construct a composed element on-the-fly
-            + Circle::new((0,0),s,st.filled()) // At this point, the new pixel coordinate is established
-            + Text::new(format!("{:?}", c), (10, 0), ("sans-serif", 10).into_font());
-        }))
-        .unwrap();
-
-    // Draw TEMPERATURE points
-    chart
-        .draw_series(PointSeries::of_element(
-            temperature_points,
-            5,
-            &BLUE,
-            &|c, s, st| {
-                return EmptyElement::at(c)    // We want to construct a composed element on-the-fly
-            + Circle::new((0,0),s,st.filled()) // At this point, the new pixel coordinate is established
-            + Text::new(format!("{:?}", c), (10, 0), ("sans-serif", 10).into_font());
-            },
-        ))
-        .unwrap();
+    draw_series(&mut chart, bpm_points, true);
+    draw_series(&mut chart, temperature_points, false);
 
     Inhibit(false)
+}
+
+type GuiChart<'a> = ChartContext<'a, CairoBackend<'a>, Cartesian2d<RangedCoordf32, RangedCoordf32>>;
+
+fn draw_series(chart: &mut GuiChart, points: Vec<(f32, f32)>, is_red: bool) {
+    let mut color = &BLUE;
+
+    if is_red {
+        color = &RED
+    }
+
+    if points.len() > 0 {
+        let (last, init) = points.split_last().unwrap();
+        chart
+            .draw_series(PointSeries::of_element(
+                init.to_vec(),
+                5,
+                color,
+                &|c, s, st| return EmptyElement::at(c) + Circle::new((0, 0), s, st.filled()),
+            ))
+            .unwrap();
+
+        chart
+            .draw_series(PointSeries::of_element(
+                vec![*last],
+                5,
+                color,
+                &|c, s, st| {
+                    return EmptyElement::at(c)
+                        + Circle::new((0, 0), s, st.filled())
+                        + Text::new(format!("{:?}", c), (10, 0), ("sans-serif", 10).into_font());
+                },
+            ))
+            .unwrap();
+    }
 }
 
 fn mk_points<'a>(v: &'a Vec<Measurement>) -> Vec<(f32, f32)> {
