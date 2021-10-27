@@ -70,7 +70,7 @@ void loop()
     }
     else
     {
-        beep();
+        beep(); // Beep to inforrm that measurement has started.
         float avgBPM = readBPM(5000); // Read BPM for 5 seconds.
 
         if (avgBPM < 0)
@@ -87,11 +87,11 @@ void loop()
             Serial.print("average-temperature: ");
             Serial.println(avgTmp);
 
-            postReq(avgBPM, avgTmp);
-            buzz(avgBPM, avgTmp, 5000); // Buzz for 5 seconds
+            postReq(avgBPM, avgTmp); // HTTP Post of variable measurements.
+            buzz(avgBPM, avgTmp, 5000); // Buzz for 5 seconds.
         }
 
-        beep();
+        beep();// Beep to inforrm that measurement has finished.
     }
 
     delay(2000);
