@@ -3,6 +3,7 @@ import sys
 lib_path = "/home/pi/university/rust-iot-project/berry/python/max30102"
 sys.path.insert(1, lib_path)
 
+import threading
 import Adafruit_DHT
 import RPi.GPIO as GPIO
 
@@ -14,22 +15,37 @@ import hrcalc
 from time import sleep
 
 
+# BOARD numbering
 DHT_SENSOR = Adafruit_DHT.DHT11
+LED_PIN = 35
+BUZZ_PIN = 37
+
+# GPIO numbering
 DHT_PIN = 10
 
-BUZZ_PIN = 26
 
 GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM)
+GPIO.setmode(GPIO.BOARD)
 GPIO.setup(BUZZ_PIN, GPIO.OUT)
+GPIO.setup(LED_PIN, GPIO.OUT)
 
 
 def main(argv):
     while True:
-        avg_bpm, avg_oxi = read_bpm(10)
-        avg_tmp = read_temperature(10)
+        GPIO.output(BUZZ_PIN, GPIO.LOW)
+        GPIO.output(LED_PIN, GPIO.LOW)
+
+        avg_bpm, avg_oxi = read_bpm(5)
+        avg_tmp = read_temperature(3)
+
         buzz(avg_bpm, avg_oxi, avg_tmp, 5)
+        th = threading.Thread(target=flush_max30102(5))
+        th.start()
+
+        GPIO.output(LED_PIN, GPIO.LOW)
+
         sleep(1)
+        th.join()
 
 
 MAX_BPM = 100
@@ -48,7 +64,7 @@ def buzz(bpm, oxi, tmp, span):
     freq = 1
 
     start = time.time()
-    current = start()
+    current = start
 
     if not normal_indicators:
         if abnormal_bpm:
@@ -69,6 +85,16 @@ def beep(freq):
     sleep(freq)
 
 
+def flush_max30102(n):
+    m = max30102.MAX30102()
+
+    for _ in range(0, n):
+        m.read_sequential(150)
+
+    m.reset()
+    m.shutdown()
+
+
 def read_bpm(n):
     print("oximetry starting...")
     m = max30102.MAX30102()
@@ -76,14 +102,20 @@ def read_bpm(n):
     bpms = []
     spo2s = []
 
-    while True:
-        red, ir = m.read_sequential(125)
+    no_finger = True
 
-        if np.mean(ir) < 50000 or np.mean(red) < 50000:
+    while True:
+        red, ir = m.read_sequential(150)
+
+        if avg(ir) < 50000 or avg(red) < 50000:
             print("No finger ...")
             sleep(0.5)
         else:
-            beep(0.25)
+            if no_finger:
+                beep(0.25)
+                GPIO.output(LED_PIN, GPIO.HIGH)
+                no_finger = False
+
             bpm, valid_bpm, spo2, valid_spo2 = hrcalc.calc_hr_and_spo2(ir, red)
 
             valid_measurements = valid_bpm and valid_spo2
@@ -94,21 +126,28 @@ def read_bpm(n):
                 spo2s.append(spo2)
 
             if len(bpms) > n and len(spo2s) > n:
-                return (np.mean(bpms), np.mean(spo2s))
+                return (avg(bpms), avg(spo2s))
 
 
 def read_temperature(n):
+    print("temperature starting...")
     readings = []
 
     for _ in range(0, n):
         _, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
-
         if temperature is not None:
             readings.append(temperature)
         else:
             print("Sensor failure. Check wiring")
 
-    return np.mean(readings)
+    return avg(readings)
+
+
+def avg(ls):
+    if len(ls) < 1:
+        return 0
+    else:
+        return np.mean(ls)
 
 
 if __name__ == "__main__":
