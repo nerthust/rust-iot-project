@@ -3,16 +3,17 @@ import sys
 lib_path = "/home/pi/university/rust-iot-project/berry/python/max30102"
 sys.path.insert(1, lib_path)
 
+import http.client
+import json
 import threading
-import Adafruit_DHT
-import RPi.GPIO as GPIO
-
 import time
 import numpy as np
-import max30102
-import hrcalc
-
 from time import sleep
+
+import Adafruit_DHT
+import RPi.GPIO as GPIO
+import hrcalc
+import max30102
 
 
 # BOARD numbering
@@ -43,6 +44,8 @@ def main(argv):
         th.start()
 
         GPIO.output(LED_PIN, GPIO.LOW)
+
+        post_req(avg_bpm, avg_oxi, avg_tmp)
 
         sleep(1)
         th.join()
@@ -148,6 +151,19 @@ def avg(ls):
         return 0
     else:
         return np.mean(ls)
+
+
+def post_req(bpm, oxi, tmp):
+    conn = http.client.HTTPConnection("127.0.0.1:8080")
+    headers = {"Content-type": "application/json"}
+
+    payload = json.dumps({"bpm": bpm, "temperature": tmp, "oximetry": oxi})
+
+    conn.request("POST", "/variables", payload, headers)
+    res = conn.getresponse()
+    conn.close()
+
+    print(f"status code {res.code}")
 
 
 if __name__ == "__main__":
