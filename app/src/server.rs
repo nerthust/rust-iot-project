@@ -16,6 +16,7 @@ async fn status() -> impl Responder {
 struct PostVariables {
     bpm: f32,
     temperature: f32,
+    oximetry: f32,
 }
 
 // POST /variables endpoint: It receives a request body of the form '{"bpm":90.6,"temperature":30.1}' and stored
@@ -33,6 +34,9 @@ async fn post_variables(
 
     // Push microcontroller's BPM Measurement into vector.
     (*vars).bpm.push(Measurement::new(now, req.bpm));
+
+    // Push microcontroller's OXIMETRY Measurement into vector.
+    (*vars).oximetry.push(Measurement::new(now, req.oximetry));
 
     // Push microcontroller's TEMPERATURE Measurement into vector.
     (*vars)
@@ -64,6 +68,7 @@ impl Measurement {
 pub struct Variables {
     pub bpm: Vec<Measurement>,
     pub temperature: Vec<Measurement>,
+    pub oximetry: Vec<Measurement>,
 }
 
 // Implement constructor for Variables.
@@ -72,6 +77,7 @@ impl Variables {
         Variables {
             bpm: Vec::new(),
             temperature: Vec::new(),
+            oximetry: Vec::new(),
         }
     }
 }

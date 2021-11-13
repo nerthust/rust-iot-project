@@ -81,7 +81,7 @@ fn update_gui(app: &gtk::Application, vars: Arc<Mutex<Variables>>) {
     });
 }
 
-// Given a Cairro context and the app's state (Arc<Mutex<Variables>>), draw a plot.
+// Given a Cairo context and the app's state (Arc<Mutex<Variables>>), draw a plot.
 fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit {
     // Initialize Cairo backend wihin drawing area.
     let root = CairoBackend::new(&ctx, (600, 600))
@@ -97,7 +97,7 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     // Set up Chart builder with all arguments to draw plot.
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            "BMP(red) & Temperature(blue)",
+            "BMP(red) & Oximetry(green) & Temperature(blue)",
             ("sans-serif", 20).into_font(),
         )
         .x_label_area_size(20)
@@ -127,10 +127,16 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     let bpm_points = mk_points(&variables.bpm);
 
     // Make TEMPERATURE points to be drawn in chart.
+    let oxi_points = mk_points(&variables.oximetry);
+
+    // Make TEMPERATURE points to be drawn in chart.
     let temperature_points = mk_points(&variables.temperature);
 
     // Draw BPM points.
     draw_series(&mut chart, bpm_points, &RED);
+
+    // Draw OXIMETRY points.
+    draw_series(&mut chart, oxi_points, &GREEN);
 
     // Draw TEMPERATURE points.
     draw_series(&mut chart, temperature_points, &BLUE);
