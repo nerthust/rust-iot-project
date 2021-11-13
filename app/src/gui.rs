@@ -133,20 +133,39 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     let temperature_points = mk_points(&variables.temperature);
 
     // Draw BPM points.
-    draw_series(&mut chart, bpm_points, &RED);
+    draw_series(&mut chart, bpm_points.clone(), &RED);
+    draw_curve(&mut chart, bpm_points, &RED);
 
     // Draw OXIMETRY points.
-    draw_series(&mut chart, oxi_points, &GREEN);
+    draw_series(&mut chart, oxi_points.clone(), &GREEN);
+    draw_curve(&mut chart, oxi_points, &GREEN);
 
     // Draw TEMPERATURE points.
-    draw_series(&mut chart, temperature_points, &BLUE);
+    draw_series(&mut chart, temperature_points.clone(), &BLUE);
+    draw_curve(&mut chart, temperature_points, &BLUE);
 
     Inhibit(false)
 }
 
 type GuiChart<'a> = ChartContext<'a, CairoBackend<'a>, Cartesian2d<RangedCoordf32, RangedCoordf32>>;
 
-// Given a chat, a set of points and a color, draw points.
+// Given a chart, a set of points and a color, draw a curve.
+fn draw_curve(chart: &mut GuiChart, points: Vec<(f32, f32)>, color: &RGBColor) {
+    chart
+        .draw_series(LineSeries::new(points, color))
+        .unwrap()
+        .label("foo")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 1000, y)], &RED));
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
+}
+
+// Given a chart, a set of points and a color, draw points.
 fn draw_series(chart: &mut GuiChart, points: Vec<(f32, f32)>, color: &RGBColor) {
     if points.len() > 0 {
         // Last point is to be drawn with coordinate labels unlike the others that will only
