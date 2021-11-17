@@ -32,6 +32,7 @@ GPIO.setup(LED_PIN, GPIO.OUT)
 # Sensors
 DHT_SENSOR = Adafruit_DHT.DHT11
 
+
 def main(argv):
     GPIO.output(LED_PIN, GPIO.LOW)
     GPIO.output(BUZZ_PIN, GPIO.LOW)
@@ -132,6 +133,7 @@ def flush_max30102(n, k, mx):
 
     mx.shutdown()
 
+
 # Take n samples of BPM and OXIMETRY measurements and return average.
 def read_bpm(n, k, mx):
     bpms = []
@@ -202,7 +204,9 @@ def avg(ls):
 # Given BPM, OXIMETRY and TEMPERATURE readings, post JSON payload to server.
 def post_req(bpm, oxi, tmp):
     # Host where data is sent.
-    conn = http.client.HTTPConnection("25e2-2800-e2-e00-739-d131-e230-79ee-593c.ngrok.io:80")
+    conn = http.client.HTTPConnection(
+        "25e2-2800-e2-e00-739-d131-e230-79ee-593c.ngrok.io:80"
+    )
     headers = {"Content-type": "application/json"}
 
     # JSON payload to be sent to server.
