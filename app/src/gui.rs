@@ -146,7 +146,7 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
         &mut chart,
         temperature_points,
         String::from("Temperature °C"),
-        4,
+        3,
     );
 
     Inhibit(false)
