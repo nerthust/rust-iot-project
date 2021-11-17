@@ -2,9 +2,9 @@ use gio::prelude::*;
 use glib::{MainContext, Receiver, Sender};
 use gtk::prelude::*;
 use plotters::coord::types::RangedCoordf32;
+use plotters::prelude::SeriesLabelPosition::Coordinate;
 use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
-use plotters::prelude::SeriesLabelPosition::Coordinate;
 use std::sync::{Arc, Mutex};
 use std::time::UNIX_EPOCH;
 use std::{thread, time};
@@ -97,10 +97,7 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
 
     // Set up Chart builder with all arguments to draw plot.
     let mut chart = ChartBuilder::on(&root)
-        .caption(
-            "Sensors input",
-            ("sans-serif", 20).into_font(),
-        )
+        .caption("Sensors input", ("sans-serif", 20).into_font())
         .x_label_area_size(50)
         .y_label_area_size(50)
         .build_cartesian_2d(0f32..1200f32, 0f32..120f32)
@@ -145,7 +142,12 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
 
     // Draw TEMPERATURE points.
     draw_series(&mut chart, temperature_points.clone(), &BLUE);
-    draw_curve(&mut chart, temperature_points, String::from("Temperature °C"), 4);
+    draw_curve(
+        &mut chart,
+        temperature_points,
+        String::from("Temperature °C"),
+        4,
+    );
 
     Inhibit(false)
 }
@@ -164,7 +166,7 @@ fn draw_curve(chart: &mut GuiChart, points: Vec<(f32, f32)>, label: String, colo
         .configure_series_labels()
         .background_style(&WHITE)
         .margin(30)
-        .position(Coordinate(350,400))
+        .position(Coordinate(350, 400))
         .border_style(&BLACK)
         .draw()
         .unwrap();
