@@ -4,6 +4,7 @@ use gtk::prelude::*;
 use plotters::coord::types::RangedCoordf32;
 use plotters::prelude::*;
 use plotters_cairo::CairoBackend;
+use plotters::prelude::SeriesLabelPosition::Coordinate;
 use std::sync::{Arc, Mutex};
 use std::time::UNIX_EPOCH;
 use std::{thread, time};
@@ -97,11 +98,11 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
     // Set up Chart builder with all arguments to draw plot.
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            "BMP(red) & Oximetry(green) & Temperature(blue)",
+            "Sensors input",
             ("sans-serif", 20).into_font(),
         )
-        .x_label_area_size(20)
-        .y_label_area_size(40)
+        .x_label_area_size(50)
+        .y_label_area_size(50)
         .build_cartesian_2d(0f32..1200f32, 0f32..120f32)
         .unwrap();
 
@@ -110,7 +111,9 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
         .configure_mesh()
         .x_labels(10)
         .y_labels(10)
-        .y_label_formatter(&|x| format!("{:.1}", x))
+        .x_desc("Seconds")
+        .y_desc("Measurements")
+        .axis_desc_style(("sans-serif", 15))
         .draw()
         .unwrap();
 
@@ -134,15 +137,15 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
 
     // Draw BPM points.
     draw_series(&mut chart, bpm_points.clone(), &RED);
-    draw_curve(&mut chart, bpm_points, &RED);
+    draw_curve(&mut chart, bpm_points, String::from("BPM"), 0);
 
     // Draw OXIMETRY points.
     draw_series(&mut chart, oxi_points.clone(), &GREEN);
-    draw_curve(&mut chart, oxi_points, &GREEN);
+    draw_curve(&mut chart, oxi_points, String::from("Oximetry %"), 1);
 
     // Draw TEMPERATURE points.
     draw_series(&mut chart, temperature_points.clone(), &BLUE);
-    draw_curve(&mut chart, temperature_points, &BLUE);
+    draw_curve(&mut chart, temperature_points, String::from("Temperature °C"), 4);
 
     Inhibit(false)
 }
@@ -150,16 +153,18 @@ fn draw_plot(ctx: &cairo::Context, vars: Arc<Mutex<Variables>>) -> gtk::Inhibit 
 type GuiChart<'a> = ChartContext<'a, CairoBackend<'a>, Cartesian2d<RangedCoordf32, RangedCoordf32>>;
 
 // Given a chart, a set of points and a color, draw a curve.
-fn draw_curve(chart: &mut GuiChart, points: Vec<(f32, f32)>, color: &RGBColor) {
+fn draw_curve(chart: &mut GuiChart, points: Vec<(f32, f32)>, label: String, color: usize) {
     chart
-        .draw_series(LineSeries::new(points, color))
+        .draw_series(LineSeries::new(points, &Palette99::pick(color)))
         .unwrap()
-        .label("foo")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 1000, y)], &RED));
+        .label(label)
+        .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], &Palette99::pick(color)));
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
+        .background_style(&WHITE)
+        .margin(30)
+        .position(Coordinate(350,400))
         .border_style(&BLACK)
         .draw()
         .unwrap();
