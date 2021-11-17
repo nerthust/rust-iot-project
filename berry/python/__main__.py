@@ -17,7 +17,6 @@ import max30102
 
 
 # BOARD numbering
-DHT_SENSOR = Adafruit_DHT.DHT11
 LED_PIN = 35
 BUZZ_PIN = 37
 
@@ -30,24 +29,28 @@ GPIO.setmode(GPIO.BOARD)
 GPIO.setup(BUZZ_PIN, GPIO.OUT)
 GPIO.setup(LED_PIN, GPIO.OUT)
 
+# Sensors
+DHT_SENSOR = Adafruit_DHT.DHT11
 
 def main(argv):
     GPIO.output(LED_PIN, GPIO.LOW)
     GPIO.output(BUZZ_PIN, GPIO.LOW)
-    flush_max30102(3, 10)
 
     while True:
+        MAX30102 = max30102.MAX30102()
+
         # Take five samples of bpm and oximetry and bind averages to variables.
-        avg_bpm, avg_oxi = read_bpm(5)
+        avg_bpm, avg_oxi = read_bpm(5, 150, MAX30102)
 
         # Take three samples of temperature and bind average to variable.
-        avg_tmp = read_temperature(3)
+        avg_tmp = read_temperature(1)
+
+        GPIO.output(LED_PIN, GPIO.LOW)
+        time.sleep(2)
 
         # Flush MAX30102 on a different thread to avoid inconsistencies in next iteration.
-        th = threading.Thread(target=flush_max30102(3, 200))
+        th = threading.Thread(target=flush_max30102(5, 150, MAX30102))
         th.start()
-
-        print((avg_bpm, avg_oxi, avg_tmp))
 
         # POST readings to remote server.
         post_req(avg_bpm, avg_oxi, avg_tmp)
@@ -60,6 +63,8 @@ def main(argv):
 
         # Wait for `flush_max30102` to finish.
         th.join()
+
+        time.sleep(1)
 
 
 # Normal BPM readings should be between 60 and 100 beats per minute when resting.
@@ -121,21 +126,14 @@ def beep(freq):
 
 
 # Flush and reset MAX30102.
-def flush_max30102(n, k):
-    m = max30102.MAX30102()
-
+def flush_max30102(n, k, mx):
     for _ in range(0, n):
-        m.read_sequential(k)
+        red, ir = mx.read_sequential(k)
 
-    m.reset()
-    m.shutdown()
-
+    mx.shutdown()
 
 # Take n samples of BPM and OXIMETRY measurements and return average.
-def read_bpm(n):
-    # Initialize sensor.
-    m = max30102.MAX30102()
-
+def read_bpm(n, k, mx):
     bpms = []
     spo2s = []
 
@@ -143,7 +141,7 @@ def read_bpm(n):
 
     while True:
         # Take 150 readings of both red and infra-red leds via sensor MAX30102.
-        red, ir = m.read_sequential(150)
+        red, ir = mx.read_sequential(k)
 
         # If average readings are below 50000, it means that there is no finger.
         if avg(ir) < 50000 or avg(red) < 50000:
