@@ -32,6 +32,10 @@ GPIO.setup(LED_PIN, GPIO.OUT)
 
 
 def main(argv):
+    GPIO.output(LED_PIN, GPIO.LOW)
+    GPIO.output(BUZZ_PIN, GPIO.LOW)
+    flush_max30102(3, 10)
+
     while True:
         # Take five samples of bpm and oximetry and bind averages to variables.
         avg_bpm, avg_oxi = read_bpm(5)
@@ -39,18 +43,20 @@ def main(argv):
         # Take three samples of temperature and bind average to variable.
         avg_tmp = read_temperature(3)
 
-        # Send readings to buzz helper to alert user in case of abnormal readings.
-        buzz(avg_bpm, avg_oxi, avg_tmp, 5)
-
         # Flush MAX30102 on a different thread to avoid inconsistencies in next iteration.
-        th = threading.Thread(target=flush_max30102(5))
+        th = threading.Thread(target=flush_max30102(3, 200))
         th.start()
 
-        # Turn led down in order to notify user that measurement is done.
-        GPIO.output(LED_PIN, GPIO.LOW)
+        print((avg_bpm, avg_oxi, avg_tmp))
 
         # POST readings to remote server.
         post_req(avg_bpm, avg_oxi, avg_tmp)
+
+        # Send readings to buzz helper to alert user in case of abnormal readings.
+        buzz(avg_bpm, avg_oxi, avg_tmp, 5)
+
+        # Turn led down in order to notify user that measurement is done.
+        GPIO.output(LED_PIN, GPIO.LOW)
 
         # Wait for `flush_max30102` to finish.
         th.join()
@@ -115,11 +121,11 @@ def beep(freq):
 
 
 # Flush and reset MAX30102.
-def flush_max30102(n):
+def flush_max30102(n, k):
     m = max30102.MAX30102()
 
     for _ in range(0, n):
-        m.read_sequential(150)
+        m.read_sequential(k)
 
     m.reset()
     m.shutdown()
@@ -127,8 +133,6 @@ def flush_max30102(n):
 
 # Take n samples of BPM and OXIMETRY measurements and return average.
 def read_bpm(n):
-    print("oximetry starting...")
-
     # Initialize sensor.
     m = max30102.MAX30102()
 
@@ -148,6 +152,8 @@ def read_bpm(n):
         else:
             # Notify user that readings has started by beeping and turning led on.
             if no_finger:
+                print("oximetry starting...")
+
                 beep(0.25)
                 GPIO.output(LED_PIN, GPIO.HIGH)
                 no_finger = False
@@ -198,7 +204,7 @@ def avg(ls):
 # Given BPM, OXIMETRY and TEMPERATURE readings, post JSON payload to server.
 def post_req(bpm, oxi, tmp):
     # Host where data is sent.
-    conn = http.client.HTTPConnection("127.0.0.1:8080")
+    conn = http.client.HTTPConnection("25e2-2800-e2-e00-739-d131-e230-79ee-593c.ngrok.io:80")
     headers = {"Content-type": "application/json"}
 
     # JSON payload to be sent to server.
